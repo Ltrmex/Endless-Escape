@@ -1,4 +1,5 @@
 ================= Description =================
+
 Avoid Obstacles game was developed for college purposes only. 
 
 The game isn't done to perfection but its working
@@ -10,6 +11,7 @@ results in losing one of the lifes which are present along with the score at the
 When player is out of lifes game over sound gets played and game over screen is displayed with the score user got.
 
 ================= Requirements Meet =================
+
 User interaction
 	- Met by keyboard control of the player (green box)
 
@@ -40,6 +42,7 @@ Extra
 	- Audio for background music, losing life, and game over
 
 ================= Reference =================
+
 Code was adapted from the following: 
 	- http://atomicrobotdesign.com/blog/htmlcss/build-a-vertical-scrolling-shooter-game-with-html5-canvas-part-1/
 	- Graphics Programming labs

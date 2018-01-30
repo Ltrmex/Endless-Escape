@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Game</title>
+<style>
+body {
+  padding:0;
+  margin:0;
+  background:#666;
+}
+canvas {
+  display:block;
+  margin:30px auto 0;
+  border:1px dashed #ccc;
+  background: black;
+}
+</style>
+<script>
+window.onload = function() {
+
+// Variables
+var canvas;	//canvas
+var ctx;	//context
+var width = 600;	//width of the canvas
+var height = 600;	//height of the canvas
+var rightKey = false;	//controls
+var leftKey = false;	//controls
+var upKey = false;	//controls
+var downKey = false;	//controls
+var alive = true;	//check if player alive
+var score = 0;	//keep the score
+var life = 3;	//amount of lifes left
+var gameStarted = false;	//check whenever game has started
+var backgroundImage;
+var positionX = 0;
+var positionY = 0; // starts at position 0
+var positionY2 = -600;	// starts at position -600, its to keep picture always on screen - implemented in animateBackground() function
+var lostLife = new Audio();	// create the audio
+var gameOver = new Audio();	// create the audio
+var backgroundSound = new Audio();	// create the audio
+var colors = ["blue", "green", "yellow", "red", "pink", "silver", "orange", "purple", "brown"];
+
+backgroundImage = new Image();
+backgroundImage.src = 'background.png';
+
+
+lostLife.src = "lostLife.mp3";  // set the resource location 
+gameOver.src = "gameOver.mp3";  // set the resource location 
+backgroundSound.src = "backgroundSound.mp3";  // set the resource location 
+
+lostLife.oncanplaythrough = function(){lostLife.readyToRock = true;};
+gameOver.oncanplaythrough = function(){gameOver.readyToRock = true;};
+
+// init function that gets called anything is drawn
+function init() {
+	// Define canvas context
+	canvas = document.getElementById("canvas");
+	ctx = canvas.getContext("2d");
+	
+	// Set height and width
+	canvas.width = width;
+	canvas.height = height;
+		
+	// Event Listeners
+	document.addEventListener('keydown', keyDown, false);	// movements of the player
+	document.addEventListener('keyup', keyUp, false);	// cease player movements
+	canvas.addEventListener('click', gameStart, false);	// check for click to start the game
+	
+	// Play background music
+	backgroundSound.loop = true;				
+	backgroundSound.play(); 
+}
+
+init();	// call init
+
+// Animation of the background
+function animateBackground() {
+	// Need two to make sure there's always image displaying
+	ctx.drawImage(backgroundImage,positionX,positionY);
+	ctx.drawImage(backgroundImage,positionX,positionY2);
+	
+	// Check if out of canvas height
+	if (positionY > 600)
+		positionY = -599;
+	
+	if (positionY2 > 600)
+		positionY2 = -599;
+	
+	// Increment position of the backgrounds
+	positionY += 1;
+	positionY2 += 1;
+}
+
+// Ball class
+class Ball {
+	// Constructor
+	constructor(x, y, r, colour, rotateValue, vx, vy) {
+		this.x = x;
+		this.y = y;
+		this.r = r;
+		this.colour = colour;
+		this.rotateValue = rotateValue;
+		this.vx = vx;
+		this.vy = vy;
+	}
+	
+	// Draw Ball
+	drawBall() {
+		ctx.beginPath();
+		ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2, false);
+		ctx.fillStyle = this.colour;
+		ctx.fill();
+		ctx.lineWidth = 3;
+		ctx.strokeStyle = "black";
+		ctx.stroke();
+	}
+	
+	// Update rotate value
+	updateRotateVal(rotateValue) {
+		this.rotateValue += rotateValue;
+	}
+	
+	// Resize ball
+	resizeBall(radius) {
+		this.r = radius;
+	}
+	
+	// Move ball
+	moveBall() {
+		//Checks for the collision
+		if (this.x + this.r >= canvas.width) {	//right
+			this.vx = -this.vx;
+			this.x = canvas.width - this.r;
+			this.setColour(colors[getRandomInt(0,9)]);
+		} else if (this.x - this.r <= 0) {	//left
+			this.vx = -this.vx;
+			this.x = this.r;
+			this.setColour(colors[getRandomInt(0,9)]);
+		}
+		
+		//Checks for the collision
+		if (this.y + this.r >= canvas.height) {	//down
+			this.vy = -this.vy;
+			this.y = canvas.height - this.r;
+			this.setColour(colors[getRandomInt(0,9)]);
+		} else if (this.y - this.r <= 0) {	//up
+			this.vy = -this.vy;
+			this.y = this.r;
+			this.setColour(colors[getRandomInt(0,9)]);
+		}
+		
+		//Location of the ball changes
+		this.x += this.vx;
+		this.y += this.vy;
+		
+		this.drawPizza();
+		
+	}
+	
+	// Set color
+	setColour(colour) {
+		this.colour = colour;
+	}
+	
+	// Draw Pizza
+	drawPizza() {
+		ctx.beginPath();
+		ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+		ctx.fillStyle = this.colour;
+		ctx.fill();
+		
+		for (var i = 1; i <= 7; i++){
+			ctx.moveTo(this.x, this.y);
+			ctx.lineTo(this.r * Math.cos( ( ( (2 * Math.PI) / 7) * i ) + this.rotateValue) + this.x, this.r * Math.sin( ( ( (2 * Math.PI) / 7 ) * i) + this.rotateValue) + this.y);
+		}
+		
+
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = "black";
+		ctx.stroke();
+	}
+	
+	// Rotate
+	rotate() {
+		this.updateRotateVal(0.05);
+		this.drawPizza();
+	}
+	
+}
+
+// Create Enemy class
+class Enemy {
+	// Constructor
+	constructor(x, y, w, h, colour, speed) {
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+		this.colour = colour;
+		this.speed = speed;
+	}
+	
+	// Draw Enemy
+	drawEnemy() {
+		ctx.fillStyle = this.colour;
+		ctx.fillRect(this.x, this.y, this.w, this.h);
+	}
+	
+	// Move Enemy accordingly to speed
+	moveEnemy() {
+		if(this.y < height)
+			this.y += this.speed;
+		else if(this.y > height - 1)
+			this.y = -45;
+			
+		this.drawEnemy();
+	}
+}
+
+// Ship or player class
+class Ship {
+	// Constructos
+	constructor(x, y, w, h, colour, speed) {
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+		this.colour = colour;
+		this.speed = speed;
+	}
+	
+	// Draw Ship accordingly to its speed
+	drawShip() {
+		// Check for right or left key press and move ship this way
+		if(rightKey)
+			this.x += this.speed;
+		else if(leftKey)
+			this.x -= this.speed;
+		
+		// Check for down or up key press and move ship this way
+		if(upKey)
+			this.y -= this.speed;
+		else if(downKey)
+			this.y += this.speed;
+		
+		// Check for ship collision with the canvas
+		if (this.x <= 0) 
+			this.x = 0;
+		if ((this.x + this.w) >= width) 
+			this.x = width - this.w;
+			
+		// Check for ship collision with the canvas
+		if (this.y <= 0) 
+			this.y = 0;
+		if ((this.y + this.h) >= height) 
+			this.y = height - this.h;
+		
+		// Redundant but added for convenience of checking the score
+		ctx.font = "bold 30px Arial white";
+		ctx.fillStyle = this.colour;
+		ctx.fillRect(this.x, this.y, this.w, this.h);
+		ctx.fillStyle = 'white';
+		ctx.fillText(score,this.x,this.y + 35);
+	}
+}
+
+// Create player character
+const character = new Ship((width / 2) - 25,height - 75,50,50,'green', 3);
+
+// Create enemies
+var enemies = new Array();	// array to store enemies objects
+enemies.push(new Enemy(50, -200, 50, 50, 'red', 5.2));	// push enemies into the array
+enemies.push(new Enemy(150, -200, 75, 75, 'red', 4.9));
+enemies.push(new Enemy(300, -200, 50, 50, 'red', 5.4));
+enemies.push(new Enemy(400, -200, 75, 75, 'red', 5));
+enemies.push(new Enemy(500, -200, 50, 50, 'red', 5.3));
+enemies.push(new Enemy(20, -10, 50, 50, 'red', 5.1));
+enemies.push(new Enemy(125, -10, 75, 75, 'red', 5));
+enemies.push(new Enemy(280, -10, 50, 50, 'red', 5.5));
+enemies.push(new Enemy(420, -10, 75, 75, 'red', 5.2));
+enemies.push(new Enemy(520, -10, 50, 50, 'red', 5.4));
+
+var balls = new Array();
+
+balls.push(new Ball(550, 550, 50, "red", 0, 0.01, 0.01));
+balls.push(new Ball(50, 50, 50, "blue", 0, 0.01, 0.01));
+balls.push(new Ball(50, 550, 50, "blue", 0, 0.01, 0.01));
+balls.push(new Ball(550, 50, 50, "red", 0, 0.01, 0.01));
+
+function rotate() {
+
+	for (i = 0; i < balls.length; i++)
+		balls[i].rotate();
+	
+	if(gameStarted == true)
+		return;
+		
+	requestAnimationFrame(rotate);
+}
+
+function stepBall() {
+	
+	for (i = 0; i < balls.length; i++)
+		balls[i].moveBall();
+	
+	if(gameStarted == true)
+		return;
+		
+	requestAnimationFrame(stepBall);
+}
+
+function getRandomInt(min, max) {
+	return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Clear canvas function
+function clearCanvas() {
+	ctx.clearRect(0,0,width,height);
+}
+
+// Movement of the enemy
+function step() {
+	
+	// Loop through all enemies and call moveEnemy on each one of them
+	for (i = 0; i < enemies.length; i++) {
+		enemies[i].moveEnemy();	// NOTE: each enemy might have different location, size and speed
+
+	}
+}
+
+// Start Game function		
+function startGame() {
+	clearCanvas();	// Clear canvas
+	animateBackground();	// animate background image
+	backgroundSound.play();	// play background music
+	
+	// If the player is alive, game has already started and life is above 0 do the following
+	if(alive && gameStarted && life > 0){
+		shipCollision();	// check for shipCollision with enemies
+		step();	//	move enemies
+		character.drawShip();	// update player location
+		stats();	// display stats
+	}
+	// Else if the game haven't started then display message to the player about name of the game and controls
+	else if (!gameStarted) {
+		ctx.font = 'bold 50px Arial';
+		ctx.fillStyle = "red";
+		ctx.fillText('Avoid Obstacles',	100, height / 2 - 40);
+		
+		ctx.font = 'italic bold 20px Arial';
+		ctx.fillStyle = "red";
+		ctx.fillText('Click to Play', 230, height / 2);
+		ctx.fillText('Use arrow keys to move', 180, height / 2 + 30);
+		
+		// Rotate and move ball
+		rotate();
+		stepBall();
+	}
+	// If player is not alive display Game over message
+	else if (!alive){
+		gameOver.play();	// play game over music
+		clearInterval(cancel);	// stop incrementing the score
+		
+		// Display message
+		ctx.font="bold 50px Arial";
+		ctx.fillStyle = "red";
+		ctx.fillText("Game Over!", 150, height / 2 - 40);
+		
+		// Display score
+		ctx.font = 'italic bold 20px Arial';
+		ctx.fillStyle = "red";
+		ctx.fillText('Your Score: ', 220, height / 2);
+		ctx.fillText(score, 350, height / 2);
+	}
+
+}
+
+// Checking for player movements
+function keyDown(e) {
+	if (e.keyCode == 39)
+		rightKey = true;
+	else if (e.keyCode == 37) 
+		leftKey = true;
+
+	if (e.keyCode == 38) 
+		upKey = true;
+	else if (e.keyCode == 40) 
+		downKey = true;
+}
+
+// Ceasing player movements
+function keyUp(e) {
+	if (e.keyCode == 39) 
+		rightKey = false;
+	else if (e.keyCode == 37) 
+		leftKey = false;
+		
+	if (e.keyCode == 38) 
+		upKey = false;
+	else if (e.keyCode == 40) 
+		downKey = false;
+}
+
+// Player collision with the enemy objects
+function shipCollision() {
+	var shipXW = character.x + character.w;
+	var ship_YH = character.y + character.h;
+	
+	// Loop through all enemies objects
+	for (var i = 0; i < enemies.length; i++) {
+		if (character.x > enemies[i].x 
+			&& character.x < enemies[i].x + enemies[i].w 
+			&& character.y > enemies[i].y 
+			&& character.y < enemies[i].y + enemies[i].h
+		|| shipXW < enemies[i].x + enemies[i].w 
+			&& shipXW > enemies[i].x 
+			&& character.y > enemies[i].y 
+			&& character.y < enemies[i].y + enemies[i].h
+		|| ship_YH > enemies[i].y 
+			&& ship_YH < enemies[i].y + enemies[i].h 
+			&& character.x > enemies[i].x 
+			&& character.x < enemies[i].x + enemies[i].w
+		|| ship_YH > enemies[i].y 
+			&& ship_YH < enemies[i].y + enemies[i].h 
+			&& shipXW < enemies[i].x + enemies[i].w 
+			&& shipXW > enemies[i].x)	// END OF IF CONDITIONS HERE
+			checkLives();	// checkLives() function gets called when collision between player and enemy detected
+	}
+}
+
+// Stats functions
+function stats() {
+	// Display player score and lifes left at the left top corner of the screen
+	ctx.font = "bold 18px Arial";
+	ctx.fillStyle = "#fff";
+	ctx.fillText('Score: ', 10, 30);
+	ctx.fillText(score, 70, 30);
+	ctx.fillText("Lives: ", 10, 50);
+	ctx.fillText(life, 70, 50);
+}
+
+// Increment player score
+function incrementScore() {
+    score += 1;
+}
+
+// Check player lives
+function checkLives() {
+	--life;	// decrement by one life
+	
+	lostLife.play();	// losing life music
+	
+	// If lifes are bigger than zero then reset the game
+	if (life > 0)
+		reset();
+	else if (life == 0)	// if lifes equal to zero than set alive to false, i.e. automatically ceases the game altogether and displays game over message
+		alive = false;
+}
+
+// Reset function
+function reset() {
+	// Reset player position
+	character.x = (width / 2) - 25;
+	character.y = height - 75;
+	character.w = 50;
+	character.h = 50;
+	character.colour = 'green';
+	character.speed = 3;
+	
+	// Reset enemy positions
+	enemies = [];
+	enemies.push(new Enemy(50, -200, 50, 50, 'red', 5.2));
+	enemies.push(new Enemy(150, -200, 75, 75, 'red', 4.9));
+	enemies.push(new Enemy(300, -200, 50, 50, 'red', 5.4));
+	enemies.push(new Enemy(400, -200, 75, 75, 'red', 5));
+	enemies.push(new Enemy(500, -200, 50, 50, 'red', 5.3));
+
+	enemies.push(new Enemy(20, -10, 50, 50, 'red', 5.1));
+	enemies.push(new Enemy(125, -10, 75, 75, 'red', 5));
+	enemies.push(new Enemy(280, -10, 50, 50, 'red', 5.5));
+	enemies.push(new Enemy(420, -10, 75, 75, 'red', 5.2));
+	enemies.push(new Enemy(520, -10, 50, 50, 'red', 5.4));
+}
+
+// Game Start function
+function gameStart() {
+	gameStarted = true;	// set game started to true
+	canvas.removeEventListener('click', gameStart, false);	// remove click event listener
+}
+
+setInterval(startGame, 15);	// set game interval
+var cancel = setInterval(incrementScore, 1000);	// increment the score every second player is alive
+
+}
+</script>
+</head>
+
+<body>
+  <canvas id="canvas"></canvas>
+</body>
+
+</html>
